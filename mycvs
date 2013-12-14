@@ -1,34 +1,45 @@
 #!/usr/bin/python
+#!encoding=utf-8
 import os
 import re
+import sys
+
+
+if len(sys.argv) < 2:
+    print 'Usage: <cmd> [options]'
+    sys.exit(0)
+cmd = sys.argv[1]
+options = sys.argv[2:]
 
 RE_FILE = re.compile('^File:\\s*(.*?)\\s+Status:\\s*(.*?)\\s*$')
-f = os.popen('cvs -q status')
-while True:
-    line = f.readline()
-    if not line:
-        break
-    line = line.strip('\r\n')
-    matchobj = RE_FILE.match(line)
-    if matchobj:
-        filename = matchobj.group(1)
-        if filename.startswith('no file '):
-            filename = filename[8:]
-        filestatus = matchobj.group(2)
-        if filestatus == 'Locally Modified':
-            filestatus = 'M'
-        elif filestatus == 'Locally Removed':
-            filestatus = 'R'
-        elif filestatus == 'Needs Checkout':
-            filestatus = '!'
-        elif filestatus == 'Locally Added':
-            filestatus = 'A'
-        else:
-            filestatus = None
-        if filestatus:
-            print '%s %s' % (filestatus , filename)
-    if line.startswith('? '):
-        print line
+
+if cmd == 'status':
+    cmd_line = 'cvs -q status ' + ' '.join(options)
+    print cmd_line
+    f = os.popen(cmd_line)
+    while True:
+        line = f.readline()
+        if not line:
+            break
+        line = line.strip('\r\n')
+        matchobj = RE_FILE.match(line)
+        if matchobj:
+            filename = matchobj.group(1)
+            if filename.startswith('no file '):
+                filename = filename[8:]
+            filestatus = matchobj.group(2)
+            status_table = {
+                'Locally Modified':     'M',
+                'Locally Removed':      'R',
+                'Needs Checkout':       '!',
+                'Locally Added':        'A',
+                'Unknown':              '?',
+            }
+            filestatus = status_table.get(filestatus, None)
+            if filestatus:
+                print '%s %s' % (filestatus , filename)
+        if line.startswith('? '):
+            print line
 
         
 
