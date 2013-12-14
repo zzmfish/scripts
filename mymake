@@ -1,0 +1,97 @@
+#!/usr/bin/python
+#encoding=utf-8
+import os
+import re
+import sys
+import signal
+import threading
+
+MAKE_PATH = '/usr/bin/make'
+
+STYLE_BOLD = '1'
+STYLE_BLACK   = '30'
+STYLE_RED     = '31'
+STYLE_GREEN   = '32'
+STYLE_YELLOW  = '33'
+STYLE_BLUE    = '34'
+STYLE_PINK    = '35'
+STYLE_CYAN    = '36'
+STYLE_BG_RED    = '41'
+STYLE_BG_GREEN  = '42'
+STYLE_BG_YELLOW = '43'
+STYLE_BG_BLUE   = '44'
+
+NAME_CHAR = '0-9A-Za-z_\\-\\.'
+STR_SOURCE = '\\b([%s]+\\.(cpp|c|h))\\b' % NAME_CHAR
+STR_PATH = NAME_CHAR + '/'
+RE_COMPILE = re.compile('^(gcc|c\\+\\+|g\\+\\+) ')
+RE_SOURCE = re.compile(STR_SOURCE)
+RE_TARGET = re.compile('-o \\b(?:[%s]*/)*([%s]+(\\.so|\\.o)?)\\b' % (STR_PATH, NAME_CHAR))
+RE_WARNING = re.compile('(.*%s:([0-9]+:)+ (警告：|warning:).*)' % STR_SOURCE)
+RE_ERROR = re.compile('(.*%s:([0-9]+:)+ (错误：|error:).*)' % (STR_SOURCE))
+
+pipeIn, pipeOut = os.pipe() #创建匿名管道
+
+#给文字加上样式
+def ApplyTextStyle(line, pattern, style):
+  if type(style) == list:
+    style = ';'.join(style)
+  new_line = ''
+  pos = 0
+  while True:
+    matchobj = pattern.search(line, pos)
+    if matchobj:
+      start = matchobj.start(1)
+      end = matchobj.end(1)
+      new_line += line[pos : start]
+      new_line += '\033[%sm%s\033[0m' % (style, line[start : end])
+      pos = end
+    else:
+      new_line += line[pos:]
+      return new_line
+
+#从管道读入子进程的输出，重新处理之后再输出到屏幕
+class ReadingThread(threading.Thread):
+  def run(self):
+    childIn = os.fdopen(pipeIn, 'r')
+    while True:
+      line = childIn.readline()
+      if not line: #空行会包含一个换行符，什么都没有就是真的结束
+        break
+      line = line.strip('\r\n')
+      should_print = True
+      if RE_COMPILE.match(line):
+        line = ApplyTextStyle(line, RE_COMPILE, [STYLE_GREEN, STYLE_BOLD])
+        line = ApplyTextStyle(line, RE_SOURCE, [STYLE_GREEN, STYLE_BOLD])
+        line = ApplyTextStyle(line, RE_TARGET, [STYLE_PINK, STYLE_BOLD])
+      elif RE_WARNING.match(line):
+        if line.find('anonymous variadic macros were introduced in C99') >= 0:
+          should_print = False
+        else:
+          line = ApplyTextStyle(line, RE_WARNING, STYLE_YELLOW)
+      elif RE_ERROR.match(line):
+        line = ApplyTextStyle(line, RE_ERROR, STYLE_RED)
+      if should_print:
+        print line
+
+childId = os.fork()
+if childId == 0: #子进程
+  #输出重定向
+  os.dup2(pipeOut, sys.stdout.fileno())
+  os.dup2(pipeOut, sys.stderr.fileno())
+  #执行目标程序
+  argv = sys.argv
+  argv[0] = MAKE_PATH
+  os.execv(MAKE_PATH, argv)
+  #不会再往下执行!!!
+else:
+  readingThread = ReadingThread()
+  readingThread.start()
+  try:
+    os.wait()
+  except KeyboardInterrupt, e: #python会把Ctrl+C转化为异常
+    os.kill(childId, signal.SIGINT)
+    os.wait() #子进程有可能还没有关闭
+    
+  os.close(pipeOut)
+  

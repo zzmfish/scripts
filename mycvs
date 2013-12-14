@@ -1,0 +1,34 @@
+#!/usr/bin/python
+import os
+import re
+
+RE_FILE = re.compile('^File:\\s*(.*?)\\s+Status:\\s*(.*?)\\s*$')
+f = os.popen('cvs -q status')
+while True:
+    line = f.readline()
+    if not line:
+        break
+    line = line.strip('\r\n')
+    matchobj = RE_FILE.match(line)
+    if matchobj:
+        filename = matchobj.group(1)
+        if filename.startswith('no file '):
+            filename = filename[8:]
+        filestatus = matchobj.group(2)
+        if filestatus == 'Locally Modified':
+            filestatus = 'M'
+        elif filestatus == 'Locally Removed':
+            filestatus = 'R'
+        elif filestatus == 'Needs Checkout':
+            filestatus = '!'
+        elif filestatus == 'Locally Added':
+            filestatus = 'A'
+        else:
+            filestatus = None
+        if filestatus:
+            print '%s %s' % (filestatus , filename)
+    if line.startswith('? '):
+        print line
+
+        
+
