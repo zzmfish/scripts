@@ -11,11 +11,11 @@ if len(sys.argv) < 2:
 cmd = sys.argv[1]
 options = sys.argv[2:]
 
-RE_FILE = re.compile('^File:\\s*(.*?)\\s+Status:\\s*(.*?)\\s*$')
-RE_PATH = re.compile('^cvs server: Examining (.*)$')
+def cvs_status(args):
+    RE_FILE = re.compile('^File:\\s*(.*?)\\s+Status:\\s*(.*?)\\s*$')
+    RE_PATH = re.compile('^cvs server: Examining (.*)$')
 
-if cmd == 'status':
-    cmd_line = 'cvs status ' + ' '.join(options) + ' 2>&1'
+    cmd_line = 'cvs status ' + ' '.join(args) + ' 2>&1'
     print cmd_line
     f = os.popen(cmd_line)
     filedir = ''
@@ -50,3 +50,5 @@ if cmd == 'status':
 
         
 
+if cmd == 'status':
+    cvs_status(options)
