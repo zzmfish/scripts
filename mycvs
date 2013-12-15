@@ -12,11 +12,13 @@ cmd = sys.argv[1]
 options = sys.argv[2:]
 
 RE_FILE = re.compile('^File:\\s*(.*?)\\s+Status:\\s*(.*?)\\s*$')
+RE_PATH = re.compile('^cvs server: Examining (.*)$')
 
 if cmd == 'status':
-    cmd_line = 'cvs -q status ' + ' '.join(options)
+    cmd_line = 'cvs status ' + ' '.join(options) + ' 2>&1'
     print cmd_line
     f = os.popen(cmd_line)
+    filedir = ''
     while True:
         line = f.readline()
         if not line:
@@ -37,7 +39,12 @@ if cmd == 'status':
             }
             filestatus = status_table.get(filestatus, None)
             if filestatus:
-                print '%s %s' % (filestatus , filename)
+                print '%s %s%s' % (filestatus , filedir, filename)
+        matchobj = RE_PATH.match(line)
+        if matchobj:
+            filedir =  matchobj.group(1).strip()
+            if filedir != '' and filedir != '.':
+                filedir += '/'
         if line.startswith('? '):
             print line
 
