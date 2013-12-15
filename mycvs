@@ -4,6 +4,12 @@ import os
 import re
 import sys
 
+COLOR_RED       = 31
+COLOR_GREEN     = 32
+COLOR_YELLOW    = 33
+COLOR_BLUE      = 34
+COLOR_PURPLE    = 35
+COLOR_CYAN      = 36
 
 if len(sys.argv) < 2:
     print 'Usage: <cmd> [options]'
@@ -11,12 +17,18 @@ if len(sys.argv) < 2:
 cmd = sys.argv[1]
 options = sys.argv[2:]
 
+def make_color(text, color):
+    return '\x1b[%dm%s\x1b[0m' % (color, text)
+
+def make_bgcolor(text, color):
+    return '\x1b[30;%dm%s\x1b[0m' % (color + 10, text)
+
 def cvs_status(args):
     RE_FILE = re.compile('^File:\\s*(.*?)\\s+Status:\\s*(.*?)\\s*$')
     RE_PATH = re.compile('^cvs server: Examining (.*)$')
 
     cmd_line = 'cvs status ' + ' '.join(args) + ' 2>&1'
-    print cmd_line
+    print make_bgcolor(cmd_line, COLOR_YELLOW)
     f = os.popen(cmd_line)
     filedir = ''
     while True:
@@ -31,11 +43,11 @@ def cvs_status(args):
                 filename = filename[8:]
             filestatus = matchobj.group(2)
             status_table = {
-                'Locally Modified':     'M',
-                'Locally Removed':      'R',
-                'Needs Checkout':       '!',
-                'Locally Added':        'A',
-                'Unknown':              '?',
+                'Locally Modified':     make_color('M', COLOR_CYAN),
+                'Locally Removed':      make_color('R', COLOR_RED),
+                'Needs Checkout':       make_bgcolor('!', COLOR_RED),
+                'Locally Added':        make_color('A', COLOR_GREEN),
+                'Unknown':              make_color('?', COLOR_YELLOW),
             }
             filestatus = status_table.get(filestatus, None)
             if filestatus:
