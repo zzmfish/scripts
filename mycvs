@@ -60,7 +60,17 @@ def cvs_status(args):
         if line.startswith('? '):
             print line
 
-        
+def cvs_diff(args):
+    for arg in args:
+        filepath = arg
+        filename = os.path.basename(filepath)
+        tmpdir = os.getenv('TMP') or '/tmp'
+        tmpfile = os.path.join(tmpdir, filename)
+        os.system('cvs update -p %s > %s; ' % (filepath, tmpfile))
+        os.system('vimdiff %s %s' % (tmpfile, filepath))
+
 
 if cmd == 'status':
     cvs_status(options)
+elif cmd == 'diff':
+    cvs_diff(options)
