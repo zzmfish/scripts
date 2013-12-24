@@ -43,11 +43,13 @@ def cvs_status(args):
                 filename = filename[8:]
             filestatus = matchobj.group(2)
             status_table = {
-                'Locally Modified':     make_color('M', COLOR_CYAN),
-                'Locally Removed':      make_color('R', COLOR_RED),
-                'Needs Checkout':       make_bgcolor('!', COLOR_RED),
-                'Locally Added':        make_color('A', COLOR_GREEN),
-                'Unknown':              make_color('?', COLOR_YELLOW),
+                'Locally Modified':                 make_color('M ', COLOR_CYAN),
+                'Locally Removed':                  make_color('R ', COLOR_RED),
+                'Needs Checkout':                   make_bgcolor('! ', COLOR_RED),
+                'Locally Added':                    make_color('A ', COLOR_GREEN),
+                'Unknown':                          '? ',
+                'File had conflicts on merge':      make_color('C ', COLOR_RED),
+                'Needs Merge':                      make_color('M*', COLOR_CYAN),
             }
             filestatus = status_table.get(filestatus, None)
             if filestatus:
@@ -55,7 +57,9 @@ def cvs_status(args):
         matchobj = RE_PATH.match(line)
         if matchobj:
             filedir =  matchobj.group(1).strip()
-            if filedir != '' and filedir != '.':
+            if filedir == '.':
+                filedir = ''
+            if filedir != '':
                 filedir += '/'
         if line.startswith('? '):
             print line
@@ -68,7 +72,6 @@ def cvs_diff(args):
         tmpfile = os.path.join(tmpdir, filename)
         os.system('cvs update -p %s > %s; ' % (filepath, tmpfile))
         os.system('vimdiff %s %s' % (tmpfile, filepath))
-
 
 if cmd == 'status':
     cvs_status(options)
