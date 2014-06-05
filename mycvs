@@ -62,7 +62,8 @@ def cvs_status(args):
             if filedir != '':
                 filedir += '/'
         if line.startswith('? '):
-            print line
+            if not line[-4:] in ['.pyc', '.log']:
+                print line
 
 def cvs_diff(args):
     for arg in args:
