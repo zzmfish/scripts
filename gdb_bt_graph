@@ -1,0 +1,210 @@
+#!/usr/bin/python  
+#coding=utf-8  
+#python convertStackToDot.py stack.txt|dot -Tpng>output.png  
+#To generate ascii flow chart, graph_easy should be installed:  
+#  sudo apt-get install libgraph-easy-perl  
+#The use below command line:  
+#python convertStackToDot.py stack.txt|graph-easy -as_ascii>output.txt  
+  
+import sys  
+import re  
+#import argparse  
+  
+function_name_str = r"[a-zA-Z][a-zA-Z0-9]*::[~a-zA-Z0-9\_\-<: >]*\(|[a-zA-Z0-9_\-<>]* \("  
+  
+Colors=["#000000","#ff0000","#00aa00","#0000ff","#800080","#daa520","#ff00b4","#d2691e","#00bfff",  
+        "#D0A020","#006000","#305050","#101870"]  
+  
+Styles=["solid","dashed","dotted"]  
+  
+MAX_COLOR_COUNT = len(Colors)  
+MAX_LINE_WIDTH_COUNT = 4  
+MAX_STYLE_COUNT = len(Styles)  
+  
+FirstNodeAttr = ' style=filled fillcolor=\"#00bb0050\"'  
+HighlightAttr = ' style=filled fillcolor=yellow'  
+  
+nodeList={}  
+nodeOrderList={}  
+firstNodeList={}  
+nodeAttr={}  
+  
+outputText = ''  
+callingStack = ''  
+newBlock=True  
+  
+willCommit=False #For filtering purpose  
+blockBackTrace = ''  
+blockNodeList={}  
+  
+def getTextOfBlockNodeList(lastNodeName,lastNodeLabel):  
+    global firstNodeList  
+    strBlockNodeText = ''  
+  
+    for key in blockNodeList.keys():  
+        if not nodeList.has_key(key):  
+            name = blockNodeList[key]  
+            strBlockNodeText = strBlockNodeText + name + nodeAttr[name]+'\n'  
+            nodeList[key] = name  
+  
+    #Replace the attribute of the last node  
+    if len(lastNodeName)>0 and not firstNodeList.has_key(lastNodeName):  
+        oldStr = lastNodeName+'[label="'+lastNodeLabel+'" shape=box ];';  
+        newStr = lastNodeName+'[label="'+lastNodeLabel+'" shape=box '+FirstNodeAttr+' ];'  
+        strBlockNodeText = strBlockNodeText.replace(oldStr,newStr,1)  
+        firstNodeList[lastNodeName] = True  
+  
+    return strBlockNodeText  
+  
+  
+def submitAndResetForNewBlock(args,lastNodeName,lastNodeLabel):  
+    global blockBackTrace,newBlock,callingStack  
+    global blockNodeList,willCommit,outputText  
+  
+    newBlock = True  
+    if willCommit and len(blockBackTrace)>0:  
+        callingStack = blockBackTrace + '\n' + callingStack  
+        blockNodeText = getTextOfBlockNodeList(lastNodeName,lastNodeLabel)  
+        outputText = outputText+blockNodeText  
+  
+    blockNodeList = {}  
+    blockBackTrace = ''  
+    willCommit = (len(args.filter)==0)  
+  
+  
+def getNodeName(text,lineNo,args):  
+    global willCommit,blockNodeList  
+  
+    if nodeList.has_key(text):  
+        nodeName = nodeList[text]  
+    elif blockNodeList.has_key(text):  
+        nodeName = blockNodeList[text]  
+    else:  
+        nodeName = 'Node'+str(lineNo)  
+        blockNodeList[text]=nodeName  
+  
+        extraAttr = ''  
+        try:  
+            if len(args.highlight)>0 and re.search(args.highlight,text):  
+                extraAttr = HighlightAttr  
+        except:  
+            extraAttr = ''  
+  
+        nodeAttr[nodeName] = '[label="'+text+'" shape=box '+extraAttr+'];'  
+  
+    if len(args.filter)>0 and re.search(args.filter,text):  
+        willCommit = True  
+  
+    return nodeName  
+  
+  
+def createNewRelation(nodeName,lastNodeName,blockNum):  
+    global blockBackTrace  
+  
+    tempKey = "%s_%s"%(nodeName,lastNodeName)  
+  
+    if args.duplicate or not nodeOrderList.has_key(tempKey):  
+        lineColor = Colors[(blockNum-1)%MAX_COLOR_COUNT]  
+        linePenWidth = str((int((blockNum-1)/MAX_COLOR_COUNT)%MAX_LINE_WIDTH_COUNT)+1)  
+        lineStyle = Styles[((blockNum-1)/(MAX_COLOR_COUNT*MAX_LINE_WIDTH_COUNT))%MAX_STYLE_COUNT]  
+  
+        if nodeOrderList.has_key(tempKey):  
+            linePenWidth = '1'  
+            lineColor = lineColor+'50' #Set alpha value  
+  
+        blockBackTrace = nodeName+'->'+lastNodeName+'[label='+str(blockNum)+\
+                    ',color=\"'+lineColor+'\"'+\
+                    ',style=\"'+lineStyle+'\"'+\
+                    ',penwidth='+linePenWidth+']\n'+ \
+                    blockBackTrace  
+  
+    nodeOrderList[tempKey] = True  
+  
+  
+def combineOutputText():  
+    global outputText,callingStack  
+  
+    outputText = outputText+callingStack+"\n}"  
+    return outputText  
+  
+  
+def convertToDot(args):  
+    global willCommit,outputText,newBlock  
+    global outputText,callingStack  
+  
+    blockNum = 0  
+    lineNo = 0  
+    lastNodeName = ''  
+    lastNodeLabel = ''  
+  
+    willCommit = (len(args.filter)==0)  
+  
+    outputText = "digraph backtrace{ \n" + args.extraDotOptions +"\n"  
+  
+    f = open(args.file, 'r')  
+  
+    for line in f:  
+        if(len(line.strip())==0) or line.find("#0  ") == 0:  
+            if not newBlock:  
+                submitAndResetForNewBlock(args, lastNodeName, lastNodeLabel)  
+  
+            if(len(line.strip())==0):  
+                continue  
+  
+        if line.find("#") != 0:  
+            continue  
+  
+        m = re.search(function_name_str, line)  
+        lineNo = lineNo+1  
+        if m:  
+            text=m.group(0).strip()  
+            text = text[:-1]  
+            text = text.strip()  
+  
+            if(len(text)==0):  
+                continue  
+              
+              
+            nodeName = getNodeName(text,lineNo,args)  
+  
+            if newBlock:  
+                newBlock = False  
+                blockNum = blockNum + 1  
+            else:  
+                createNewRelation(nodeName,lastNodeName,blockNum)  
+  
+            lastNodeName = nodeName  
+            lastNodeLabel = text  
+  
+    resultDotString = combineOutputText()  
+  
+    print(resultDotString)  
+  
+    f.close()  
+  
+class Args:
+  def __init__(self):
+    self.file = sys.argv[1]
+    self.filter = []
+    self.extraDotOptions = ''
+    self.duplicate = False
+    self.highlight = ''
+
+if __name__=="__main__":  
+    #parser = argparse.ArgumentParser()  
+    #parser.add_argument('file', type=str, help='The text file which contains GDB call stacks.')  
+    #parser.add_argument('-e','--extraDotOptions', default='', help='Extra graph options. For example: rankdir=LR; That means to show functions in horizontal.')  
+    #parser.add_argument('-l','--highlight', default='', help='Regular Expression Pattern. Nodes are highlighted whose name match the pattern.')  
+    #parser.add_argument('-f','--filter', default='', help='Regular Expression Pattern. The calling stack are shown only if which include the matched nodes.')  
+    #parser.add_argument('-d','--duplicate', action='store_true', default=False, help='Leave duplicated callings.')  
+  
+    if len(sys.argv)<=1:  
+        parser.print_help()  
+        print "  Any comment, please feel free to contact horky.chen@gmail.com."  
+        quit()  
+  
+    #args = parser.parse_args()  
+    args = Args()
+      
+    if args.file is not None:  
+        convertToDot(args)  
