@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+hosts="localhost"
+port=22
+cmd="uname -a"
+user=$USER
+
+#!/bin/bash
+while getopts "h:c:u:p:" arg
+do
+    case $arg in
+    h)
+        hosts=$OPTARG
+        ;;
+    p)
+        port=$OPTARG
+        ;;
+    c)
+        cmd=$OPTARG
+        ;;
+    u)
+        user=$OPTARG
+        ;;
+    esac
+done
+
+for host in $hosts; do
+    shell_cmd="ssh -p $port $user@$host $cmd"
+    echo -e "\033[32m*** $shell_cmd ***\033[0m"
+    $shell_cmd
+done
