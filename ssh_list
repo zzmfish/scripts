@@ -1,0 +1,58 @@
+#!/usr/bin/env python
+import os
+import re
+import sys
+import argparse
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-l', dest="list", action='store_true')
+    parser.add_argument('-a', type=str, default="ssh", choices=["ssh", "mount", "m"])
+    parser.add_argument('-H', type=str, default="")
+    return parser.parse_args()
+
+
+def load_list():
+    result = {}
+    conf_path = os.path.join(os.getenv('HOME'), '.ssh_list')
+    for line in open(conf_path, 'r'):
+        line = line.strip('\r\n')
+        try:
+            host, port, user = re.split(r'\s+', line)
+            port = int(port)
+        except ValueError:
+            print 'failed to parse line: %s' % (line)
+        result[host] = {"port":port, "user":user}
+    return result
+
+
+host_list = load_list()
+args = parse_args()
+
+if args.list:
+    print '+--------------------------------+'
+    print '| %-10s | %-10s | %-4s |' % ('HOST', 'USER', 'PORT')
+    print '|--------------------------------|'
+    host_names = host_list.keys()
+    host_names.sort()
+    for host_name in host_names:
+        host_info = host_list[host_name]
+        print '| %-10s | %-10s | %-4d |' % (host_name, host_info['user'], host_info['port'])
+    print '+--------------------------------+'
+
+
+if args.a == "ssh":
+    if not args.H:
+        print 'please specify the host!'
+        sys.exit()
+    host = args.H
+    if host not in host_list:
+        print '%s is not in host list!' % host
+        sys.exit()
+    port = host_list[host]['port']
+    user = host_list[host]['user']
+
+    cmd = "ssh -o ServerAliveInterval=60 -p %d %s@%s" % (port, user, host)
+    print '\033[32m*** %s ***\033[0m' % cmd
+    os.system(cmd)
