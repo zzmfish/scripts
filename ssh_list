@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# encoding=utf-8
 import os
 import re
 import sys
@@ -26,10 +27,13 @@ def load_list():
         result[host] = {"port":port, "user":user}
     return result
 
+def color_print(msg):
+    print '\033[32m%s\033[0m' % msg
 
 host_list = load_list()
 args = parse_args()
 
+# 显示列表
 if args.list:
     print '+--------------------------------+'
     print '| %-10s | %-10s | %-4s |' % ('HOST', 'USER', 'PORT')
@@ -40,19 +44,29 @@ if args.list:
         host_info = host_list[host_name]
         print '| %-10s | %-10s | %-4d |' % (host_name, host_info['user'], host_info['port'])
     print '+--------------------------------+'
+    sys.exit()
+
+# 获取目标主机信息
+if not args.H:
+    print 'please specify the host!'
+    sys.exit()
+host = args.H
+if host not in host_list:
+    print '%s is not in host list!' % host
+    sys.exit()
+port = host_list[host]['port']
+user = host_list[host]['user']
 
 
 if args.a == "ssh":
-    if not args.H:
-        print 'please specify the host!'
-        sys.exit()
-    host = args.H
-    if host not in host_list:
-        print '%s is not in host list!' % host
-        sys.exit()
-    port = host_list[host]['port']
-    user = host_list[host]['user']
-
+    # ssh登录
     cmd = "ssh -o ServerAliveInterval=60 -p %d %s@%s" % (port, user, host)
-    print '\033[32m*** %s ***\033[0m' % cmd
+    color_print('*** %s ***' % cmd)
     os.system(cmd)
+elif args.a == "mount" or args.a == "m":
+    # sshfs挂载
+    cmd = "sshfs -o ServerAliveInterval=60 -o nonempty -o reconnect -p %d %s@%s: %s" \
+          % (port, user, host, os.path.join(os.getenv('HOME'), 'mount', host))
+    color_print('*** %s ***' % cmd)
+    os.system(cmd)
+
