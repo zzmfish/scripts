@@ -8,7 +8,8 @@ import argparse
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-l', dest="list", action='store_true')
+    parser.add_argument('-l', dest='list', action='store_true')
+    parser.add_argument('-m', dest='mount', action='store_true')
     parser.add_argument('-a', type=str, default="ssh", choices=["ssh", "mount", "m"])
     parser.add_argument('-H', type=str, default="")
     return parser.parse_args()
@@ -57,6 +58,8 @@ if host not in host_list:
 port = host_list[host]['port']
 user = host_list[host]['user']
 
+if args.mount:
+    args.a = "mount"
 
 if args.a == "ssh":
     # ssh登录
@@ -65,8 +68,11 @@ if args.a == "ssh":
     os.system(cmd)
 elif args.a == "mount" or args.a == "m":
     # sshfs挂载
-    cmd = "sshfs -o ServerAliveInterval=60 -o nonempty -o reconnect -p %d %s@%s: %s" \
-          % (port, user, host, os.path.join(os.getenv('HOME'), 'mount', host))
+    mount_point = os.path.join(os.getenv('HOME'), 'mount', host)
+    if not os.path.exists(mount_point):
+        os.mkdir(mount_point)
+    cmd = "sshfs -o ServerAliveInterval=60 -o reconnect -p %d %s@%s: %s" \
+          % (port, user, host, mount_point)
     color_print('*** %s ***' % cmd)
     os.system(cmd)
 
