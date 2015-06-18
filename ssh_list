@@ -19,7 +19,9 @@ def load_list():
     result = {}
     conf_path = os.path.join(os.getenv('HOME'), '.ssh_list')
     for line in open(conf_path, 'r'):
-        line = line.strip('\r\n')
+        line = line.strip('\r\n\t ')
+        if not line:
+            continue
         try:
             host, port, user = re.split(r'\s+', line)
             port = int(port)
