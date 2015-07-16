@@ -11,6 +11,7 @@ def parse_args():
     parser.add_argument('-l', dest='list', action='store_true')
     parser.add_argument('-m', dest='mount', action='store_true')
     parser.add_argument('-a', type=str, default="ssh", choices=["ssh", "mount", "m"])
+    parser.add_argument('-u', type=str)
     parser.add_argument('-H', type=str, default="")
     return parser.parse_args()
 
@@ -59,6 +60,8 @@ if host not in host_list:
     sys.exit()
 port = host_list[host]['port']
 user = host_list[host]['user']
+if args.u:
+    user = args.u
 
 if args.mount:
     args.a = "mount"
